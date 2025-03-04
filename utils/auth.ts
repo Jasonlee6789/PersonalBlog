@@ -1,20 +1,26 @@
-import { SHA256 } from 'crypto-js';
-import jwt from 'jsonwebtoken';
+'use client';
 
-const JWT_SECRET = 'your-secret-key-jing-lee-blog';
+import { SHA256 } from 'crypto-js';
+import * as jose from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode('your-secret-key-jing-lee-blog');
 const TOKEN_EXPIRY = '24h';
 
 export function hashPassword(password: string): string {
   return SHA256(password).toString();
 }
 
-export function generateToken(username: string): string {
-  return jwt.sign({ username }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+export async function generateToken(username: string): Promise<string> {
+  const jwt = await new jose.SignJWT({ username })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(TOKEN_EXPIRY)
+    .sign(JWT_SECRET);
+  return jwt;
 }
 
-export function verifyToken(token: string): boolean {
+export async function verifyToken(token: string): Promise<boolean> {
   try {
-    jwt.verify(token, JWT_SECRET);
+    await jose.jwtVerify(token, JWT_SECRET);
     return true;
   } catch {
     return false;

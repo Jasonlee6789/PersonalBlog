@@ -5,7 +5,7 @@ import { hashPassword, generateToken, verifyToken, USER_INFO } from '@/utils/aut
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -13,23 +13,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // 检查是否已经登录并验证 token
-    const token = localStorage.getItem('blog_auth_token');
-    if (token && verifyToken(token)) {
-      setIsAuthenticated(true);
-    } else {
-      // 如果 token 无效，清除存储
-      localStorage.removeItem('blog_auth_token');
-      setIsAuthenticated(false);
-    }
+    const checkAuth = async () => {
+      setMounted(true);
+      const token = localStorage.getItem('blog_auth_token');
+      if (token && await verifyToken(token)) {
+        setIsAuthenticated(true);
+      } else {
+        localStorage.removeItem('blog_auth_token');
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  const login = (username: string, password: string) => {
+  const login = async (username: string, password: string) => {
     const hashedPassword = hashPassword(password);
     if (username === USER_INFO.username && hashedPassword === USER_INFO.passwordHash) {
-      const token = generateToken(username);
+      const token = await generateToken(username);
       setIsAuthenticated(true);
       localStorage.setItem('blog_auth_token', token);
       return true;
@@ -41,6 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     localStorage.removeItem('blog_auth_token');
   };
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout }}>

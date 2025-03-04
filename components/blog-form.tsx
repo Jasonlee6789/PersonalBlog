@@ -24,24 +24,38 @@ export function BlogForm({ initialData, isEditing = false }: BlogFormProps) {
     e.preventDefault();
 
     try {
-      // 这里添加保存博客文章的逻辑
-      // 可以使用 localStorage 或者后端 API
+      // 生成 slug：使用时间戳和标题组合，避免中文 URL 编码问题
+      const timestamp = new Date().getTime();
+      const slug = `${timestamp}-${formData.title}`
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') // 保留中文字符，其他特殊字符替换为连字符
+        .replace(/^-+|-+$/g, ''); // 移除首尾的连字符
+
       const savedPost = {
         ...formData,
         date: new Date().toISOString(),
-        id: Date.now().toString(),
-        slug: formData.title.toLowerCase().replace(/\s+/g, '-'),
+        id: timestamp.toString(),
+        slug,
       };
 
-      // 临时使用 localStorage 存储
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      posts.push(savedPost);
-      localStorage.setItem('blog-posts', JSON.stringify(posts));
+      // 如果是编辑模式，更新现有文章
+      if (isEditing && initialData) {
+        const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+        const updatedPosts = posts.map((post: any) =>
+          post.title === initialData.title ? savedPost : post
+        );
+        localStorage.setItem('blog-posts', JSON.stringify(updatedPosts));
+      } else {
+        // 如果是新建模式，添加新文章
+        const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+        posts.push(savedPost);
+        localStorage.setItem('blog-posts', JSON.stringify(posts));
+      }
 
       router.push('/blog');
     } catch (error) {
       console.error('Error saving post:', error);
-      alert('Failed to save post');
+      alert('保存文章失败');
     }
   };
 
@@ -49,7 +63,7 @@ export function BlogForm({ initialData, isEditing = false }: BlogFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-          Title
+          标题
         </label>
         <input
           type="text"
@@ -63,7 +77,7 @@ export function BlogForm({ initialData, isEditing = false }: BlogFormProps) {
 
       <div>
         <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700 mb-1">
-          Excerpt
+          摘要
         </label>
         <textarea
           id="excerpt"
@@ -77,7 +91,7 @@ export function BlogForm({ initialData, isEditing = false }: BlogFormProps) {
 
       <div>
         <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
-          Content (Markdown)
+          内容 (Markdown)
         </label>
         <textarea
           id="content"
@@ -94,14 +108,14 @@ export function BlogForm({ initialData, isEditing = false }: BlogFormProps) {
           type="submit"
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
         >
-          {isEditing ? 'Update Post' : 'Create Post'}
+          {isEditing ? '更新文章' : '创建文章'}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
         >
-          Cancel
+          取消
         </button>
       </div>
     </form>
